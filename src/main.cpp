@@ -43,7 +43,7 @@ void createDisplay(LiquidCrystal_I2C &_lcd)
 
 void updateDisplay(LiquidCrystal_I2C &_lcd, int value)
 {
-  String text = "%d %";
+  String text = "%d%";
   _lcd.setCursor(8, 1);
   text.replace("%d", String(value));
   _lcd.print(text);
