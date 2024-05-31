@@ -43,21 +43,31 @@ void createDisplay(LiquidCrystal_I2C &_lcd)
 
 void updateDisplay(LiquidCrystal_I2C &_lcd, int value)
 {
-  String text = "%d%";
+  String text = "%d";
   _lcd.setCursor(8, 1);
   text.replace("%d", String(value));
+  text += "%";
   _lcd.print(text);
+  int leftOver = text.length();
+  for(int i = 8 + text.length(); i < lcdColumn; i++)
+  {
+    _lcd.print(" ");
+  }
 }
 
 void lcdRoutine(void *pvParameter)
 {
+  const char *_TAG = "lcd routine";
   while (1)
   {
     int buff;
+    // ESP_LOGI(_TAG, "update display");
     if (xQueueReceive(levelValueQueue, &buff, portMAX_DELAY) == pdTRUE)
     {
+      ESP_LOGI(_TAG, "update display");
       updateDisplay(lcd, buff);
     }
+    // vTaskDelay(1000/portTICK_PERIOD_MS);
   }
   
 }
@@ -82,7 +92,7 @@ void setup() {
   // put your setup code here, to run once:
   pinMode(internalLed, OUTPUT);
   Serial.begin(115200);
-  xTaskCreate(lcdRoutine, "lcd task", 1024, NULL, 1, &lcdTask);
+  // xTaskCreate(lcdRoutine, "lcd task", 2048, NULL, 1, &lcdTask);
   WiFi.mode(WIFI_MODE_APSTA);
   WiFi.softAPConfig(apIp, apGateway, apDns);
   WiFi.softAP(apSsid, apPass);
@@ -91,9 +101,15 @@ void setup() {
   WiFi.onEvent(WiFiStationConnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED);
   WiFi.onEvent(WiFiGotIP, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
   WiFi.begin(ssid, pass);
+  uint8_t timeout = 0;
   while (WiFi.status() != WL_CONNECTED) {
     ESP_LOGI(TAG, ".");
     delay(1000);
+    timeout++;
+    if (timeout > 2)
+    {
+      break;
+    }
   }
 
   server.on("/api/get-data", HTTP_GET, [](AsyncWebServerRequest *request)
@@ -101,7 +117,7 @@ void setup() {
     const int maxCapacity = 4;
     const int kmPerLitre = 40;
     float valueInLitre = (analogValue / 2048) * maxCapacity;
-    int percentage = map(analogValue, 0, 2048, 0, 100);
+    int percentage = map(analogValue, 2048, 4096, 0, 100);
     JsonDocument doc;
 
     doc["max_capacity_in_litre"] = maxCapacity;
@@ -130,7 +146,8 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
   analogValue = analogRead(analogPin);
-  int percentageValue = map(analogValue, 0, 2048, 0, 100);
+  ESP_LOGI(TAG, "raw value : %d\n", analogValue);
+  int percentageValue = map(analogValue, 2048, 4095, 0, 100);
 
   if ((WiFi.status() != WL_CONNECTED) && (millis() - lastReconnectMillis >= 5000)) 
   {
@@ -143,7 +160,8 @@ void loop() {
   }
   if (millis() - lastChecked > 100)
   {
-    xQueueSend(levelValueQueue, &percentageValue, 100);
+    // xQueueSend(levelValueQueue, &percentageValue, 100);
+    updateDisplay(lcd, percentageValue);
     lastChecked = millis();
   }
   delay(10);
