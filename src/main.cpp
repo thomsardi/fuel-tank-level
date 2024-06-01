@@ -10,12 +10,13 @@ QueueHandle_t levelValueQueue = xQueueCreate(10, sizeof(int));
 
 const char* TAG = "tank level program";
 
-const char* ssid = "TAPE MAS PUNGKI";
-const char* pass = "tapegosong";
+const char* ssid = "TAPE MAS PUNGKI"; //ssid of hotspot
+const char* pass = "tapegosong"; //pass of hotspot
 
-const char* apSsid = "esp32-ap";
-const char* apPass = "esp32-pass";
+const char* apSsid = "esp32-ap"; //ssid for esp32 access point
+const char* apPass = "esp32-pass"; //pass for esp32 access point
 
+//ip, gateway, dns for access point Mode
 IPAddress apIp(192, 168, 4, 1);
 IPAddress apGateway(192, 168, 4, 1);
 IPAddress apDns(255, 255, 255, 0);
@@ -26,6 +27,11 @@ unsigned long lastReconnectMillis = 0;
 int internalLed = 2;
 const int analogPin = 34;
 int analogValue = 0;
+int percentageValue = 0;
+
+const int maxCapacity = 4; //tank maximum capacity in litre
+const int kmPerLitre = 40; //fuel consumption, this is 1:40
+float valueInLitre = 0;
 
 int lcdColumn = 16;
 int lcdRow = 2;
@@ -93,20 +99,20 @@ void setup() {
   pinMode(internalLed, OUTPUT);
   Serial.begin(115200);
   // xTaskCreate(lcdRoutine, "lcd task", 2048, NULL, 1, &lcdTask);
+  WiFi.onEvent(WiFiStationConnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED);
+  WiFi.onEvent(WiFiGotIP, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);  
   WiFi.mode(WIFI_MODE_APSTA);
   WiFi.softAPConfig(apIp, apGateway, apDns);
   WiFi.softAP(apSsid, apPass);
   ESP_LOGI(TAG, "Access Point created");
   ESP_LOGI(TAG, "Access Point IP : %s\n", WiFi.softAPIP().toString().c_str());
-  WiFi.onEvent(WiFiStationConnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED);
-  WiFi.onEvent(WiFiGotIP, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
   WiFi.begin(ssid, pass);
   uint8_t timeout = 0;
   while (WiFi.status() != WL_CONNECTED) {
     ESP_LOGI(TAG, ".");
     delay(1000);
     timeout++;
-    if (timeout > 2)
+    if (timeout > 5)
     {
       break;
     }
@@ -114,17 +120,13 @@ void setup() {
 
   server.on("/api/get-data", HTTP_GET, [](AsyncWebServerRequest *request)
   {
-    const int maxCapacity = 4;
-    const int kmPerLitre = 40;
-    float valueInLitre = (analogValue / 2048) * maxCapacity;
-    int percentage = map(analogValue, 2048, 4096, 0, 100);
     JsonDocument doc;
 
     doc["max_capacity_in_litre"] = maxCapacity;
     doc["km_per_litre"] = kmPerLitre;
     doc["value_in_litre"] = valueInLitre;
     doc["raw_value"] = analogValue;
-    doc["percentage"] = percentage;
+    doc["percentage"] = percentageValue;
 
     String output;
 
@@ -141,15 +143,22 @@ void setup() {
   createDisplay(lcd);
   server.begin();
   lastChecked = millis();
+  analogValue = 2048;
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
+  // analogValue += 1;
+  // analogValue = (analogValue>4095)? 2048 : analogValue;
   analogValue = analogRead(analogPin);
+  percentageValue = map(analogValue, 2048, 4095, 0, 100); //map value to 0 - 100 range
+  percentageValue = constrain(percentageValue, 0, 100); //constrain value to  0 - 100, cap the value at 0 and 100
+  valueInLitre = (float)percentageValue * maxCapacity / 100; //convert percent into litre
   ESP_LOGI(TAG, "raw value : %d\n", analogValue);
-  int percentageValue = map(analogValue, 2048, 4095, 0, 100);
+  ESP_LOGI(TAG, "percentage value : %d\n", percentageValue);
+  ESP_LOGI(TAG, "value in litre : %.2f L\n", valueInLitre);
 
-  if ((WiFi.status() != WL_CONNECTED) && (millis() - lastReconnectMillis >= 5000)) 
+  if ((WiFi.status() != WL_CONNECTED) && (millis() - lastReconnectMillis >= 5000)) //reconnect to network
   {
     digitalWrite(internalLed, LOW);
     ESP_LOGI(TAG, "===============Reconnecting to WiFi...========================\n");
