@@ -13,6 +13,11 @@ const char* TAG = "tank level program";
 const char* ssid = "TAPE MAS PUNGKI"; //ssid of hotspot
 const char* pass = "tapegosong"; //pass of hotspot
 
+//ip, gateway, dns for station mode
+IPAddress staIp(192, 168, 1, 45);
+IPAddress staGateway(192, 168, 1, 1);
+IPAddress staDns(255, 255, 255, 0);
+
 const char* apSsid = "esp32-ap"; //ssid for esp32 access point
 const char* apPass = "esp32-pass"; //pass for esp32 access point
 
@@ -32,6 +37,8 @@ int percentageValue = 0;
 const int maxCapacity = 4; //tank maximum capacity in litre
 const int kmPerLitre = 40; //fuel consumption, this is 1:40
 float valueInLitre = 0;
+const int minValue = 1900;
+const int maxValue = 3850;
 
 int lcdColumn = 16;
 int lcdRow = 2;
@@ -106,6 +113,7 @@ void setup() {
   WiFi.softAP(apSsid, apPass);
   ESP_LOGI(TAG, "Access Point created");
   ESP_LOGI(TAG, "Access Point IP : %s\n", WiFi.softAPIP().toString().c_str());
+  WiFi.config(staIp, staGateway, staDns);
   WiFi.begin(ssid, pass);
   uint8_t timeout = 0;
   while (WiFi.status() != WL_CONNECTED) {
@@ -151,7 +159,7 @@ void loop() {
   // analogValue += 1;
   // analogValue = (analogValue>4095)? 2048 : analogValue;
   analogValue = analogRead(analogPin);
-  percentageValue = map(analogValue, 2048, 4095, 0, 100); //map value to 0 - 100 range
+  percentageValue = map(analogValue, minValue, maxValue, 0, 100); //map value to 0 - 100 range
   percentageValue = constrain(percentageValue, 0, 100); //constrain value to  0 - 100, cap the value at 0 and 100
   valueInLitre = (float)percentageValue * maxCapacity / 100; //convert percent into litre
   ESP_LOGI(TAG, "raw value : %d\n", analogValue);
