@@ -37,8 +37,8 @@ int percentageValue = 0;
 const int maxCapacity = 4; //tank maximum capacity in litre
 const int kmPerLitre = 40; //fuel consumption, this is 1:40
 float valueInLitre = 0;
-const int minValue = 1900;
-const int maxValue = 3850;
+const int minValue = 1900; //reading value at empty tank
+const int maxValue = 3850; //reading value at max tank
 
 int lcdColumn = 16;
 int lcdRow = 2;
@@ -151,7 +151,6 @@ void setup() {
   createDisplay(lcd);
   server.begin();
   lastChecked = millis();
-  analogValue = 2048;
 }
 
 void loop() {
