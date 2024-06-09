@@ -10,8 +10,8 @@ QueueHandle_t levelValueQueue = xQueueCreate(10, sizeof(int));
 
 const char* TAG = "tank level program";
 
-const char* ssid = "TAPE MAS PUNGKI"; //ssid of hotspot
-const char* pass = "tapegosong"; //pass of hotspot
+const char* ssid = "tangki-123"; //ssid of hotspot
+const char* pass = "tangki123"; //pass of hotspot
 
 //ip, gateway, dns for station mode
 IPAddress staIp(192, 168, 1, 45);
@@ -113,7 +113,7 @@ void setup() {
   WiFi.softAP(apSsid, apPass);
   ESP_LOGI(TAG, "Access Point created");
   ESP_LOGI(TAG, "Access Point IP : %s\n", WiFi.softAPIP().toString().c_str());
-  WiFi.config(staIp, staGateway, staDns);
+  // WiFi.config(staIp, staGateway, staDns);
   WiFi.begin(ssid, pass);
   uint8_t timeout = 0;
   while (WiFi.status() != WL_CONNECTED) {
